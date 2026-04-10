@@ -224,7 +224,7 @@ async def escalar_conversacion(
             # 2. Enviar número del cliente como contacto tappable
             r2 = await client.post(
                 "https://gate.whapi.cloud/messages/contact",
-                json={"to": numero_escalamiento, "contact": vcard},
+                json={"to": numero_escalamiento, "name": nombre_contacto, "vcard": vcard},
                 headers=headers,
                 timeout=10.0,
             )
