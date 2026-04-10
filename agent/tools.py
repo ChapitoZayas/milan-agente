@@ -178,13 +178,30 @@ async def escalar_conversacion(
     lineas.append(f"  Cliente: {mensaje_actual[:120].replace(chr(10), ' ')}")
     resumen = "\n".join(lineas) if lineas else "  (sin historial previo)"
 
+    # Texto del aviso — sin el número (se envía aparte como contacto tappable)
     aviso = (
         f"🚨 *ESCALAMIENTO — Milan*\n\n"
-        f"📞 *Número del cliente:* {telefono_cliente}\n"
         f"⚠️ *Motivo:* {motivo}\n\n"
         f"📋 *Resumen de la conversación:*\n"
         f"{resumen}\n\n"
-        f"_Responde directamente a ese número si necesitas atenderlo personalmente._"
+        f"_Toca el contacto de abajo para abrir el chat directamente 👇_"
+    )
+
+    # Preparar vCard del cliente para enviarlo como contacto tappable
+    wa_id = telefono_cliente.lstrip("+")
+    phone_con_codigo = f"+{wa_id}"
+    if wa_id.startswith("52"):
+        nombre_contacto = "🇲🇽 Cliente Milan"
+    elif wa_id.startswith("1"):
+        nombre_contacto = "🇺🇸 Cliente Milan"
+    else:
+        nombre_contacto = "Cliente Milan"
+    vcard = (
+        f"BEGIN:VCARD\n"
+        f"VERSION:3.0\n"
+        f"FN:{nombre_contacto}\n"
+        f"TEL;type=CELL;type=VOICE;waid={wa_id}:{phone_con_codigo}\n"
+        f"END:VCARD"
     )
 
     headers = {
@@ -193,15 +210,29 @@ async def escalar_conversacion(
     }
     try:
         async with httpx.AsyncClient() as client:
-            r = await client.post(
+            # 1. Enviar texto con motivo y resumen
+            r1 = await client.post(
                 "https://gate.whapi.cloud/messages/text",
                 json={"to": numero_escalamiento, "body": aviso},
                 headers=headers,
                 timeout=10.0,
             )
-            if r.status_code != 200:
-                logger.error(f"Error enviando escalamiento: {r.status_code} — {r.text}")
+            if r1.status_code != 200:
+                logger.error(f"Error enviando texto de escalamiento: {r1.status_code} — {r1.text}")
                 return False
+
+            # 2. Enviar número del cliente como contacto tappable
+            r2 = await client.post(
+                "https://gate.whapi.cloud/messages/contact",
+                json={"to": numero_escalamiento, "contact": vcard},
+                headers=headers,
+                timeout=10.0,
+            )
+            if r2.status_code != 200:
+                logger.error(f"Error enviando contacto de escalamiento: {r2.status_code} — {r2.text}")
+                # El texto ya se envió — éxito parcial, no falla total
+                return True
+
             logger.info(f"Escalamiento enviado a {numero_escalamiento} | Motivo: {motivo}")
             return True
     except Exception as e:
