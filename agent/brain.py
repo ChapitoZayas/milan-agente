@@ -7,6 +7,7 @@ y genera respuestas usando la API de Anthropic Claude.
 """
 
 import os
+import re
 import yaml
 import logging
 from anthropic import AsyncAnthropic
@@ -47,7 +48,7 @@ def obtener_mensaje_fallback() -> str:
     return config.get("fallback_message", "Disculpa, no entendí tu mensaje. ¿Podrías reformularlo?")
 
 
-async def generar_respuesta(mensaje: str, historial: list[dict]) -> str:
+async def generar_respuesta(mensaje: str, historial: list[dict]) -> tuple[str, str | None]:
     """
     Genera una respuesta usando Claude API.
 
@@ -56,11 +57,12 @@ async def generar_respuesta(mensaje: str, historial: list[dict]) -> str:
         historial: Lista de mensajes anteriores [{"role": "user/assistant", "content": "..."}]
 
     Returns:
-        La respuesta generada por Claude
+        Tupla (respuesta_para_cliente, motivo_escalamiento | None)
+        Si motivo_escalamiento no es None, se debe notificar a la dueña.
     """
     # Si el mensaje es muy corto o vacío, usar fallback
     if not mensaje or len(mensaje.strip()) < 2:
-        return obtener_mensaje_fallback()
+        return obtener_mensaje_fallback(), None
 
     system_prompt = cargar_system_prompt()
 
@@ -88,8 +90,18 @@ async def generar_respuesta(mensaje: str, historial: list[dict]) -> str:
 
         respuesta = response.content[0].text
         logger.info(f"Respuesta generada ({response.usage.input_tokens} in / {response.usage.output_tokens} out)")
-        return respuesta
+
+        # Detectar marcador de escalamiento que Claude incluye cuando es necesario
+        motivo_escalamiento = None
+        match = re.search(r'\[ESCALAR:\s*([^\]]+)\]', respuesta, re.IGNORECASE)
+        if match:
+            motivo_escalamiento = match.group(1).strip()
+            # Limpiar el marcador — no debe llegar a la clienta
+            respuesta = re.sub(r'\s*\[ESCALAR:\s*[^\]]+\]', '', respuesta, flags=re.IGNORECASE).strip()
+            logger.info(f"Escalamiento detectado: {motivo_escalamiento}")
+
+        return respuesta, motivo_escalamiento
 
     except Exception as e:
         logger.error(f"Error Claude API: {e}")
-        return obtener_mensaje_error()
+        return obtener_mensaje_error(), None

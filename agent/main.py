@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from agent.brain import generar_respuesta
 from agent.memory import inicializar_db, guardar_mensaje, obtener_historial
 from agent.providers import obtener_proveedor
+from agent.tools import escalar_conversacion
 
 load_dotenv()
 
@@ -84,7 +85,11 @@ async def webhook_handler(request: Request):
             historial = await obtener_historial(msg.telefono)
 
             # Generar respuesta con Claude
-            respuesta = await generar_respuesta(msg.texto, historial)
+            respuesta, motivo_escalamiento = await generar_respuesta(msg.texto, historial)
+
+            # Si Claude detectó una situación que requiere escalamiento, notificar a la dueña
+            if motivo_escalamiento:
+                await escalar_conversacion(msg.telefono, motivo_escalamiento, historial, msg.texto)
 
             # Guardar mensaje del usuario Y respuesta del agente en memoria
             await guardar_mensaje(msg.telefono, "user", msg.texto)

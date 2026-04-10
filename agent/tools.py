@@ -9,6 +9,7 @@ Estas funciones apoyan los casos de uso: FAQ y agendado de citas.
 import os
 import yaml
 import logging
+import httpx
 from datetime import datetime
 
 logger = logging.getLogger("agentkit")
@@ -132,3 +133,77 @@ def consultar_cita(telefono: str) -> str:
         f"👗 Evento: {cita.get('tipo_evento', 'N/A')}\n"
         f"Estado: {cita.get('estado', 'pendiente')}"
     )
+
+
+# ════════════════════════════════════════════════════════════
+# Escalamiento — notificación automática a la dueña
+# ════════════════════════════════════════════════════════════
+
+async def escalar_conversacion(
+    telefono_cliente: str,
+    motivo: str,
+    historial: list[dict],
+    mensaje_actual: str,
+) -> bool:
+    """
+    Envía un aviso de WhatsApp al número de escalamiento cuando se detecta
+    una situación que requiere atención directa de la dueña.
+
+    Args:
+        telefono_cliente: Número de la clienta que disparó el escalamiento
+        motivo: Descripción breve del motivo (generada por Claude)
+        historial: Mensajes anteriores de la conversación
+        mensaje_actual: El último mensaje del cliente que disparó el escalamiento
+
+    Returns:
+        True si el aviso se envió correctamente
+    """
+    numero_escalamiento = os.getenv("NUMERO_ESCALAMIENTO")
+    whapi_token = os.getenv("WHAPI_TOKEN")
+
+    if not numero_escalamiento:
+        logger.warning("NUMERO_ESCALAMIENTO no configurado — escalamiento no enviado")
+        return False
+    if not whapi_token:
+        logger.warning("WHAPI_TOKEN no configurado — escalamiento no enviado")
+        return False
+
+    # Construir resumen con los últimos 6 mensajes + el mensaje actual
+    ultimos = historial[-6:] if len(historial) > 6 else historial
+    lineas = []
+    for msg in ultimos:
+        prefijo = "Cliente" if msg["role"] == "user" else "Agente"
+        texto = msg["content"][:120].replace("\n", " ")
+        lineas.append(f"  {prefijo}: {texto}")
+    lineas.append(f"  Cliente: {mensaje_actual[:120].replace(chr(10), ' ')}")
+    resumen = "\n".join(lineas) if lineas else "  (sin historial previo)"
+
+    aviso = (
+        f"🚨 *ESCALAMIENTO — Milan*\n\n"
+        f"📞 *Número del cliente:* {telefono_cliente}\n"
+        f"⚠️ *Motivo:* {motivo}\n\n"
+        f"📋 *Resumen de la conversación:*\n"
+        f"{resumen}\n\n"
+        f"_Responde directamente a ese número si necesitas atenderlo personalmente._"
+    )
+
+    headers = {
+        "Authorization": f"Bearer {whapi_token}",
+        "Content-Type": "application/json",
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post(
+                "https://gate.whapi.cloud/messages/text",
+                json={"to": numero_escalamiento, "body": aviso},
+                headers=headers,
+                timeout=10.0,
+            )
+            if r.status_code != 200:
+                logger.error(f"Error enviando escalamiento: {r.status_code} — {r.text}")
+                return False
+            logger.info(f"Escalamiento enviado a {numero_escalamiento} | Motivo: {motivo}")
+            return True
+    except Exception as e:
+        logger.error(f"Excepción al enviar escalamiento: {e}")
+        return False

@@ -3,6 +3,7 @@ negocio:
   nombre: "Milan"
   descripcion: "Negocio de renta de vestidos para todo tipo de ocasiones. Ofrecemos vestidos elegantes, de fiesta, de noche y para eventos especiales. Atendemos a clientas que buscan lucir hermosas sin necesidad de comprar un vestido."
   horario: "Lunes a Viernes: 10am-2pm y 4pm-7pm | Sábados: 11am-3pm | Domingos: Cerrado"
+  telefono: "6311378686"
 
 agente:
   nombre: "Asistente Milan"
