@@ -187,8 +187,8 @@ async def escalar_conversacion(
         f"_Toca el contacto de abajo para abrir el chat directamente 👇_"
     )
 
-    # Preparar vCard del cliente para enviarlo como contacto tappable
-    wa_id = telefono_cliente.lstrip("+")
+    # Extraer solo los dígitos antes del @ (ej: "15206372492@s.whatsapp.net" → "15206372492")
+    wa_id = telefono_cliente.split("@")[0]
     phone_con_codigo = f"+{wa_id}"
     if wa_id.startswith("52"):
         nombre_contacto = "🇲🇽 Cliente Milan"
