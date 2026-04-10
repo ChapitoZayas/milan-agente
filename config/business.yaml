@@ -1,9 +1,12 @@
 # Configuración del negocio — Generado por AgentKit
 negocio:
-  nombre: "Milan"
-  descripcion: "Negocio de renta de vestidos para todo tipo de ocasiones. Ofrecemos vestidos elegantes, de fiesta, de noche y para eventos especiales. Atendemos a clientas que buscan lucir hermosas sin necesidad de comprar un vestido."
+  nombre: "Milan Dress Rental"
+  descripcion: "Renta de vestidos para dama, niña y embarazadas en Nogales, Sonora. Vestidos de noche para eventos formales, vestidos de niña para fiestas y sesiones de fotos, y vestidos de sesión para embarazadas. Todos los vestidos incluyen accesorios a juego."
+  direccion: "Alfonso Acosta #16, Planta Alta, Local #1, Colonia del Valle, Nogales, Sonora"
   horario: "Lunes a Viernes: 10am-2pm y 4pm-7pm | Sábados: 11am-3pm | Domingos: Cerrado"
   telefono: "6311378686"
+  instagram: "https://www.instagram.com/milandressrental"
+  facebook: "https://www.facebook.com/share/1BBgYM2a5Z/"
 
 agente:
   nombre: "Asistente Milan"
